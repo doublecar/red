@@ -166,8 +166,8 @@ def save_page_image(image: Image.Image, session_dir: Path, page_idx: int) -> str
     filename = f"page_{page_idx + 1:03d}.jpg"
     dest = session_dir / filename
     image.save(dest, "JPEG", quality=85)
-    # Return URL-friendly path relative to static/
-    return str(dest.relative_to(BASE_DIR / "static"))
+    # Return URL-friendly path relative to static/ (forward slashes for Windows compat)
+    return dest.relative_to(BASE_DIR / "static").as_posix()
 
 
 # ──────────────────────────────────────────────────────────────────────────
