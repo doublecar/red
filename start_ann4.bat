@@ -1,10 +1,10 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-title Ann3 — Patent Figure Annotator
+title Ann4 — Patent Figure Annotator
 
 echo ============================================================
-echo  Ann3 — Patent Figure Annotator
+echo  Ann4 — Patent Figure Annotator
 echo  Powered by Florence-2 + Python 3.11
 echo ============================================================
 echo.
@@ -64,7 +64,7 @@ echo Download Python 3.11.9 (64-bit) directly:
 echo   https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
 echo.
 echo During installation, tick "Add Python 3.11 to PATH" on the first screen.
-echo Then close this window and double-click start_ann3.bat again.
+echo Then close this window and double-click start_ann4.bat again.
 echo.
 pause
 exit /b 1
@@ -108,11 +108,11 @@ echo [OK]   Dependencies installed.
 echo.
 echo NOTE: The Florence-2 model (~1 GB) will be downloaded from HuggingFace
 echo       the first time you submit a PDF. This is normal — it is cached
-echo       afterwards in %%USERPROFILE%%\.cache\huggingface
+echo       afterwards in %USERPROFILE%\.cache\huggingface
 echo.
 
 :: ── Launch Flask server ────────────────────────────────────────────────────
-echo [....] Starting Ann3 server on http://localhost:5000 ...
+echo [....] Starting Ann4 server on http://localhost:5000 ...
 echo        Press Ctrl+C in this window to stop.
 echo.
 

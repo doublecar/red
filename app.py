@@ -1,5 +1,5 @@
 """
-Ann3 — Patent Figure Annotation App
+Ann4 — Patent Figure Annotation App
 Flask + Florence-2 (microsoft/Florence-2-base-ft)
 
 Compatible with Python 3.11.  The AttributeErrors seen on Python 3.14
@@ -12,7 +12,6 @@ under Python 3.11 with transformers==4.45.2 eliminates both errors.
 
 from __future__ import annotations
 
-import io
 import os
 import sys
 import uuid
@@ -47,7 +46,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     stream=sys.stdout,
 )
-log = logging.getLogger("ann3")
+log = logging.getLogger("ann4")
 
 # ──────────────────────────────────────────────────────────────────────────
 # Configuration
@@ -71,7 +70,7 @@ PDF_DPI = int(os.environ.get("PDF_DPI", "150"))
 DEFAULT_TASK = os.environ.get("FLORENCE2_TASK", "<DETAILED_CAPTION>")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET", "ann3-dev-secret-change-me")
+app.secret_key = os.environ.get("FLASK_SECRET", "ann4-dev-secret-change-me")
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 
@@ -250,9 +249,7 @@ def annotate():
 
         try:
             raw = run_florence2(img, task)
-            # Florence-2 returns {task_key: value}; grab the first value
             annotation = next(iter(raw.values()), "")
-            log.info("Page %d raw result: %r", idx + 1, raw)
             if isinstance(annotation, dict):
                 # e.g. OD returns {"bboxes": [...], "labels": [...]}
                 annotation_text = _format_od_result(annotation)
@@ -306,5 +303,5 @@ def health():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    log.info("Starting Ann3 on http://0.0.0.0:%d  (debug=%s)", port, debug)
+    log.info("Starting Ann4 on http://0.0.0.0:%d  (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
