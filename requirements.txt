@@ -6,9 +6,10 @@
 flask>=3.0,<4.0
 Werkzeug>=3.0,<4.0
 
-# PyTorch — standard PyPI wheel (CUDA optional; uses CPU if no GPU is found)
-torch==2.4.1
-torchvision==0.19.1
+# PyTorch — CPU-only wheels (passed via --extra-index-url in start_ann3.bat)
+# On a machine without a GPU this saves ~1 GB vs the CUDA wheel.
+torch==2.4.1+cpu
+torchvision==0.19.1+cpu
 
 # HuggingFace stack pinned to versions known-good with Florence-2
 transformers==4.45.2
