@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ann3 — Patent Figure Annotator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 2rem; font-weight: 700; color: #2d3748; }
+    header p  { color: #718096; margin-top: 0.4rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 2rem;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .field { margin-bottom: 1.2rem; }
+    label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #4a5568; font-size: .9rem; }
+    input[type="file"],
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: .6rem .8rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: .95rem;
+      background: #f7fafc;
+      transition: border-color .2s;
+    }
+    input[type="file"]:focus,
+    input[type="text"]:focus,
+    select:focus { outline: none; border-color: #667eea; background: #fff; }
+
+    .hint { font-size: .78rem; color: #a0aec0; margin-top: .3rem; }
+
+    button[type="submit"] {
+      width: 100%;
+      padding: .75rem;
+      background: #667eea;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    button[type="submit"]:hover { background: #5a67d8; }
+    button[type="submit"]:active { background: #4c51bf; }
+
+    .flash-list { list-style: none; margin-bottom: 1rem; }
+    .flash-list li {
+      background: #fff5f5;
+      border-left: 4px solid #fc8181;
+      padding: .6rem .9rem;
+      border-radius: 6px;
+      color: #c53030;
+      font-size: .9rem;
+      margin-bottom: .5rem;
+    }
+
+    .spinner { display: none; text-align: center; margin-top: 1rem; color: #718096; font-size: .9rem; }
+    .spinner.active { display: block; }
+    .dot-anim::after {
+      content: "";
+      animation: dots 1.4s infinite;
+    }
+    @keyframes dots {
+      0%   { content: ""; }
+      33%  { content: "."; }
+      66%  { content: ".."; }
+      100% { content: "..."; }
+    }
+
+    footer { margin-top: 2rem; color: #a0aec0; font-size: .8rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ann3</h1>
+    <p>Patent Figure Annotation powered by Florence-2</p>
+  </header>
+
+  <div class="card">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-list">
+          {% for category, message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/annotate" enctype="multipart/form-data" id="annotate-form">
+
+      <div class="field">
+        <label for="pdf">Patent PDF</label>
+        <input type="file" name="pdf" id="pdf" accept=".pdf" required>
+        <p class="hint">Max 64 MB. Each page is treated as a figure.</p>
+      </div>
+
+      <div class="field">
+        <label for="task">Florence-2 Task</label>
+        <select name="task" id="task">
+          <option value="&lt;CAPTION&gt;"
+            {% if default_task == '<CAPTION>' %}selected{% endif %}>
+            &lt;CAPTION&gt; — one-line caption
+          </option>
+          <option value="&lt;DETAILED_CAPTION&gt;"
+            {% if default_task == '<DETAILED_CAPTION>' %}selected{% endif %}>
+            &lt;DETAILED_CAPTION&gt; — detailed description (default)
+          </option>
+          <option value="&lt;MORE_DETAILED_CAPTION&gt;"
+            {% if default_task == '<MORE_DETAILED_CAPTION>' %}selected{% endif %}>
+            &lt;MORE_DETAILED_CAPTION&gt; — verbose description
+          </option>
+          <option value="&lt;OD&gt;"
+            {% if default_task == '<OD>' %}selected{% endif %}>
+            &lt;OD&gt; — object detection
+          </option>
+          <option value="&lt;DENSE_REGION_CAPTION&gt;"
+            {% if default_task == '<DENSE_REGION_CAPTION>' %}selected{% endif %}>
+            &lt;DENSE_REGION_CAPTION&gt; — dense region captions
+          </option>
+          <option value="&lt;OCR&gt;"
+            {% if default_task == '<OCR>' %}selected{% endif %}>
+            &lt;OCR&gt; — optical character recognition
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="pages">Pages to annotate</label>
+        <input type="text" name="pages" id="pages" value="all" placeholder="all  or  1,3,5-8">
+        <p class="hint">
+          <code>all</code> annotates every page.
+          Use comma-separated numbers or ranges like <code>1,3,5-8</code>.
+        </p>
+      </div>
+
+      <button type="submit" id="submit-btn">Annotate</button>
+
+      <div class="spinner" id="spinner">
+        <span class="dot-anim">Annotating — this may take a few minutes on CPU</span>
+      </div>
+    </form>
+  </div>
+
+  <footer>Ann3 · Florence-2 · Python 3.11</footer>
+
+  <script>
+    document.getElementById("annotate-form").addEventListener("submit", function() {
+      document.getElementById("submit-btn").disabled = true;
+      document.getElementById("spinner").classList.add("active");
+    });
+  </script>
+</body>
+</html>

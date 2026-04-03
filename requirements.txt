@@ -1,0 +1,33 @@
+# Ann3 Patent Figure Annotation — Python 3.11 compatible
+# Florence-2 requires transformers>=4.38; 4.45.x is stable and avoids
+# the forced_bos_token_id / additional_special_tokens AttributeErrors
+# that surface on Python 3.14 / newer transformers internals.
+
+flask>=3.0,<4.0
+Werkzeug>=3.0,<4.0
+
+# PyTorch — standard PyPI wheel (CUDA optional; uses CPU if no GPU is found)
+torch==2.4.1
+torchvision==0.19.1
+
+# HuggingFace stack pinned to versions known-good with Florence-2
+transformers==4.45.2
+tokenizers==0.20.3
+huggingface-hub==0.25.2
+safetensors==0.4.5
+accelerate==0.34.2
+
+# Florence-2 vision encoder deps
+timm==1.0.9
+einops==0.8.0
+
+# PDF → image extraction
+PyMuPDF==1.24.11
+
+# Image handling
+Pillow>=10.4,<11.0
+
+# Misc
+numpy>=1.26,<2.0
+requests>=2.31
+tqdm>=4.66

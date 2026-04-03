@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ann3 — Results</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 2rem; font-weight: 700; color: #2d3748; }
+    header p  { color: #718096; margin-top: .4rem; font-size: .95rem; }
+
+    .meta {
+      max-width: 900px;
+      margin: 0 auto 1.5rem;
+      background: #ebf4ff;
+      border-left: 4px solid #667eea;
+      padding: .7rem 1rem;
+      border-radius: 6px;
+      font-size: .88rem;
+      color: #4a5568;
+    }
+    .meta strong { color: #2d3748; }
+
+    .grid {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    @media (max-width: 640px) { .card { grid-template-columns: 1fr; } }
+
+    .card-image {
+      background: #f7fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      border-right: 1px solid #e2e8f0;
+    }
+    @media (max-width: 640px) {
+      .card-image { border-right: none; border-bottom: 1px solid #e2e8f0; }
+    }
+    .card-image img {
+      max-width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+
+    .card-body { padding: 1.25rem; display: flex; flex-direction: column; gap: .6rem; }
+    .page-label {
+      font-weight: 700;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #667eea;
+    }
+    .annotation {
+      font-size: .92rem;
+      line-height: 1.65;
+      color: #2d3748;
+      white-space: pre-wrap;
+      flex: 1;
+    }
+    .copy-btn {
+      align-self: flex-start;
+      padding: .3rem .7rem;
+      background: #edf2f7;
+      border: none;
+      border-radius: 6px;
+      font-size: .8rem;
+      cursor: pointer;
+      color: #4a5568;
+      transition: background .15s;
+    }
+    .copy-btn:hover { background: #e2e8f0; }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin: 2rem auto;
+      color: #667eea;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: .95rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ann3 — Annotations</h1>
+    <p>Patent Figure Annotation powered by Florence-2</p>
+  </header>
+
+  <div class="meta">
+    <strong>File:</strong> {{ filename }} &nbsp;|&nbsp;
+    <strong>Task:</strong> {{ task }} &nbsp;|&nbsp;
+    <strong>Total pages:</strong> {{ total_pages }} &nbsp;|&nbsp;
+    <strong>Annotated:</strong> {{ results|length }}
+  </div>
+
+  <div class="grid">
+    {% for r in results %}
+    <div class="card">
+      <div class="card-image">
+        <img src="{{ r.image_url }}" alt="Page {{ r.page }}">
+      </div>
+      <div class="card-body">
+        <span class="page-label">Page {{ r.page }}</span>
+        <div class="annotation" id="ann-{{ r.page }}">{{ r.annotation }}</div>
+        <button class="copy-btn" onclick="copyAnn({{ r.page }})">Copy text</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <a class="back-link" href="/">&#8592; Annotate another PDF</a>
+
+  <script>
+    function copyAnn(page) {
+      const el = document.getElementById("ann-" + page);
+      navigator.clipboard.writeText(el.innerText).then(() => {
+        const btn = el.nextElementSibling;
+        btn.textContent = "Copied!";
+        setTimeout(() => btn.textContent = "Copy text", 1500);
+      });
+    }
+  </script>
+</body>
+</html>
