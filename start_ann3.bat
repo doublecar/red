@@ -56,11 +56,14 @@ for %%C in (python3 python) do (
 
 echo [ERROR] Python 3.11 not found.
 echo.
-echo Please download and install Python 3.11 from:
-echo   https://www.python.org/downloads/release/python-3119/
+echo Pythons currently installed on this PC:
+py -0 2>nul || echo   (py launcher not available)
 echo.
-echo Make sure to tick "Add Python to PATH" during installation.
-echo Then re-run this script.
+echo Download Python 3.11.9 (64-bit) directly:
+echo   https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
+echo.
+echo During installation, tick "Add Python 3.11 to PATH" on the first screen.
+echo Then close this window and double-click start_ann3.bat again.
 echo.
 pause
 exit /b 1
