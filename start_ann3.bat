@@ -12,45 +12,46 @@ echo.
 :: ── Find Python 3.11 ──────────────────────────────────────────────────────
 set PYTHON=
 
-:: Check py launcher first (most reliable on Windows)
-where py >nul 2>&1
-if %errorlevel%==0 (
-    for /f "tokens=*" %%v in ('py -3.11 --version 2^>^&1') do set PYVER=%%v
-    if "!PYVER:~0,10!"=="Python 3.11" (
-        set PYTHON=py -3.11
-        echo [OK] Found Python via py launcher: !PYVER!
+:: 1) Check fixed install path (most reliable — works even if not on PATH)
+set PYPATH311=%LOCALAPPDATA%\Programs\Python\Python311\python.exe
+if exist "%PYPATH311%" (
+    set PYTHON="%PYPATH311%"
+    echo [OK] Found Python 3.11 at %PYPATH311%
+    goto :found_python
+)
+
+:: 2) Check other common install paths
+for %%P in (
+    "%ProgramFiles%\Python311\python.exe"
+    "%ProgramFiles(x86)%\Python311\python.exe"
+    "C:\Python311\python.exe"
+) do (
+    if exist %%P (
+        set PYTHON=%%P
+        echo [OK] Found Python 3.11 at %%P
         goto :found_python
     )
 )
 
-:: Check common install paths
-for %%P in (
-    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
-    "%ProgramFiles%\Python311\python.exe"
-    "%ProgramFiles(x86)%\Python311\python.exe"
-    "C:\Python311\python.exe"
-    "C:\Python311-32\python.exe"
-) do (
-    if exist %%P (
-        for /f "tokens=*" %%v in ('%%P --version 2^>^&1') do set PYVER=%%v
-        if "!PYVER:~0,10!"=="Python 3.11" (
-            set PYTHON=%%P
-            echo [OK] Found Python at %%P: !PYVER!
-            goto :found_python
-        )
+:: 3) Try py launcher
+where py >nul 2>&1
+if %errorlevel%==0 (
+    py -3.11 --version >nul 2>&1
+    if !errorlevel!==0 (
+        set PYTHON=py -3.11
+        echo [OK] Found Python 3.11 via py launcher
+        goto :found_python
     )
 )
 
-:: Try plain python3 / python
-for %%C in (python3 python) do (
-    where %%C >nul 2>&1
-    if !errorlevel!==0 (
-        for /f "tokens=*" %%v in ('%%C --version 2^>^&1') do set PYVER=%%v
-        if "!PYVER:~0,10!"=="Python 3.11" (
-            set PYTHON=%%C
-            echo [OK] Found Python on PATH: !PYVER!
-            goto :found_python
-        )
+:: 4) Check if python on PATH is 3.11
+where python >nul 2>&1
+if %errorlevel%==0 (
+    for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PYVER=%%v
+    if "!PYVER:~0,4!"=="3.11" (
+        set PYTHON=python
+        echo [OK] Found Python 3.11 on PATH: !PYVER!
+        goto :found_python
     )
 )
 
