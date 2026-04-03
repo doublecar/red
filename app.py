@@ -252,6 +252,7 @@ def annotate():
             raw = run_florence2(img, task)
             # Florence-2 returns {task_key: value}; grab the first value
             annotation = next(iter(raw.values()), "")
+            log.info("Page %d raw result: %r", idx + 1, raw)
             if isinstance(annotation, dict):
                 # e.g. OD returns {"bboxes": [...], "labels": [...]}
                 annotation_text = _format_od_result(annotation)
