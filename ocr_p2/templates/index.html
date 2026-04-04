@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCR Testbench — {{ version }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: ui-monospace, 'Cascadia Code', 'Menlo', monospace;
+  font-size: 13px;
+  background: #1a1a1a;
+  color: #d4d4d4;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  background: #111;
+  border-bottom: 1px solid #333;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+header h1 { font-size: 15px; color: #e0e0e0; letter-spacing: .04em; }
+.version-badge {
+  background: #7c3aed;
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: .06em;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: 310px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+.sidebar {
+  background: #1e1e1e;
+  border-right: 1px solid #333;
+  overflow-y: auto;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.main-area { display: flex; flex-direction: column; overflow: hidden; }
+
+/* drop zone */
+#drop-zone {
+  border: 2px dashed #444;
+  border-radius: 8px;
+  padding: 22px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  color: #888;
+  font-size: 12px;
+  line-height: 1.5;
+}
+#drop-zone.dragover, #drop-zone:hover { border-color: #7c3aed; background: #1f1a2e; color: #aac; }
+#file-input { display: none; }
+#file-name { font-size: 11px; color: #6a9; margin-top: 4px; word-break: break-all; }
+
+/* groups */
+.group { background: #252525; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
+.group-header {
+  background: #2a2a2a;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: #888;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+}
+.group-body { padding: 10px; display: flex; flex-direction: column; gap: 9px; }
+
+label { display: block; color: #aaa; font-size: 11px; margin-bottom: 3px; }
+select, input[type="text"], input[type="number"], input[type="range"] {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  color: #d4d4d4;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+}
+select:focus, input:focus { outline: none; border-color: #7c3aed; }
+.range-row { display: flex; gap: 6px; align-items: center; }
+.range-row input[type="range"] { flex: 1; padding: 0; }
+.range-val { min-width: 36px; text-align: right; font-size: 12px; color: #ccc; }
+.check-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #ccc; }
+.check-row input[type="checkbox"] { width: 14px; height: 14px; accent-color: #7c3aed; }
+
+/* buttons */
+.btn {
+  border: none;
+  border-radius: 6px;
+  padding: 9px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: .04em;
+  transition: background .15s;
+  width: 100%;
+}
+.btn-primary { background: #7c3aed; color: #fff; }
+.btn-primary:hover { background: #6d28d9; }
+.btn-primary:disabled { background: #334; color: #667; cursor: default; }
+.btn-success { background: #166534; color: #86efac; }
+.btn-success:hover { background: #15803d; }
+.btn-success:disabled { background: #1a2e1a; color: #4a6a4a; cursor: default; }
+.btn-secondary { background: #333; color: #ccc; border: 1px solid #444; }
+.btn-secondary:hover { background: #3a3a3a; }
+
+/* status */
+#status { font-size: 11px; text-align: center; color: #666; min-height: 16px; }
+#status.error { color: #f87171; }
+#status.ok { color: #4ade80; }
+
+/* auto-tune */
+.tune-expected {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  color: #d4d4d4;
+  padding: 5px 7px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 48px;
+}
+.tune-expected:focus { outline: none; border-color: #7c3aed; }
+
+/* progress bar */
+.progress-wrap {
+  background: #111;
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+  display: none;
+}
+.progress-bar {
+  height: 100%;
+  background: #7c3aed;
+  width: 0%;
+  transition: width .3s;
+  border-radius: 4px;
+}
+#tune-status-line { font-size: 11px; color: #666; text-align: center; min-height: 14px; }
+
+/* tune results table */
+.tune-results {
+  display: none;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.tune-results table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.tune-results th {
+  background: #1e1e1e;
+  padding: 4px 6px;
+  text-align: left;
+  color: #666;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid #333;
+}
+.tune-results td { padding: 3px 6px; border-bottom: 1px solid #1e1e1e; }
+.tune-results tr.best-row td { background: #1a2e1a; color: #86efac; font-weight: 600; }
+.tune-results tr:last-child td { border-bottom: none; }
+
+/* tabs */
+.tab-bar { display: flex; border-bottom: 1px solid #333; background: #1a1a1a; flex-shrink: 0; }
+.tab { padding: 8px 18px; font-size: 12px; cursor: pointer; color: #666; border-bottom: 2px solid transparent; user-select: none; }
+.tab.active { color: #d4d4d4; border-bottom-color: #7c3aed; }
+.tab-content { display: none; flex: 1; overflow: auto; padding: 14px; }
+.tab-content.active { display: flex; flex-direction: column; gap: 12px; }
+
+/* image panels */
+.img-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.img-panel { background: #252525; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
+.img-label { background: #2a2a2a; padding: 5px 10px; font-size: 11px; color: #888; border-bottom: 1px solid #333; }
+.img-panel img { width: 100%; display: block; }
+.img-empty { padding: 40px; text-align: center; color: #555; font-size: 12px; }
+
+/* results */
+.result-section { background: #252525; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
+.result-header {
+  background: #2a2a2a; padding: 6px 12px; font-size: 11px; color: #888;
+  letter-spacing: .07em; text-transform: uppercase; border-bottom: 1px solid #333;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.copy-btn {
+  background: #333; border: 1px solid #444; border-radius: 3px;
+  color: #aaa; font-size: 10px; padding: 1px 7px; cursor: pointer; font-family: inherit;
+}
+.copy-btn:hover { background: #444; }
+pre.raw-text {
+  padding: 12px; white-space: pre-wrap; word-break: break-word;
+  font-size: 12px; line-height: 1.7; color: #c8e6c9;
+  max-height: 280px; overflow-y: auto;
+}
+table.word-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.word-table th {
+  background: #2a2a2a; padding: 5px 8px; text-align: left;
+  color: #888; font-weight: normal; border-bottom: 1px solid #333;
+  position: sticky; top: 0; z-index: 1;
+}
+table.word-table td { padding: 4px 8px; border-bottom: 1px solid #2a2a2a; vertical-align: middle; }
+table.word-table tr:last-child td { border-bottom: none; }
+.conf-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.conf-bar { height: 6px; border-radius: 3px; min-width: 2px; }
+.conf-high { background: #4ade80; } .conf-mid { background: #facc15; } .conf-low { background: #f87171; }
+
+/* overlay */
+#overlay-wrap { position: relative; display: inline-block; width: 100%; }
+#overlay-wrap img { display: block; width: 100%; }
+#overlay-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.tess-config { background: #111; border: 1px solid #333; border-radius: 4px; padding: 6px 10px; font-size: 11px; color: #6a9; word-break: break-all; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #1a1a1a; }
+::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>OCR Testbench</h1>
+  <span class="version-badge">{{ version }}</span>
+  <span style="color:#555;font-size:11px;margin-left:auto;">Tesseract · OpenCV · PyMuPDF</span>
+</header>
+
+<div class="workspace">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <span style="font-size:28px;margin-bottom:6px;display:block;">📄</span>
+      Drag &amp; drop a PDF here<br>or click to browse
+      <div id="file-name"></div>
+    </div>
+    <input type="file" id="file-input" accept=".pdf">
+
+    <!-- Tesseract -->
+    <div class="group">
+      <div class="group-header">Tesseract</div>
+      <div class="group-body">
+        <div>
+          <label for="psm">Page Segmentation Mode (PSM)</label>
+          <select id="psm">
+            {% for k, v in psm_descriptions.items() %}
+            <option value="{{ k }}" {% if k == 6 %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="oem">OCR Engine Mode (OEM)</label>
+          <select id="oem">
+            {% for k, v in oem_descriptions.items() %}
+            <option value="{{ k }}" {% if k == 1 %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="whitelist">Char whitelist (blank = all)</label>
+          <input type="text" id="whitelist" value="0123456789" placeholder="e.g. 0123456789">
+        </div>
+      </div>
+    </div>
+
+    <!-- Image -->
+    <div class="group">
+      <div class="group-header">Image</div>
+      <div class="group-body">
+        <div>
+          <label for="dpi">Render DPI</label>
+          <div class="range-row">
+            <input type="range" id="dpi" min="72" max="600" step="12" value="300" oninput="syncVal(this,'dpi-val')">
+            <span class="range-val" id="dpi-val">300</span>
+          </div>
+        </div>
+        <div>
+          <label for="rotation">Rotation (°)</label>
+          <div class="range-row">
+            <input type="range" id="rotation" min="-90" max="90" step="0.5" value="0" oninput="syncVal(this,'rotation-val')">
+            <span class="range-val" id="rotation-val">0</span>
+          </div>
+        </div>
+        <div>
+          <label for="despeckle">Despeckle strength (1 = off)</label>
+          <div class="range-row">
+            <input type="range" id="despeckle" min="1" max="5" step="1" value="1" oninput="syncVal(this,'despeckle-val')">
+            <span class="range-val" id="despeckle-val">1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line removal -->
+    <div class="group">
+      <div class="group-header">OpenCV Line Removal</div>
+      <div class="group-body">
+        <div class="check-row">
+          <input type="checkbox" id="remove_lines">
+          <label for="remove_lines" style="margin:0;">Enable (mask long lines)</label>
+        </div>
+        <div>
+          <label for="line_min_length">Min line length (px at DPI)</label>
+          <div class="range-row">
+            <input type="range" id="line_min_length" min="20" max="500" step="10" value="100" oninput="syncVal(this,'line_min_length-val')">
+            <span class="range-val" id="line_min_length-val">100</span>
+          </div>
+        </div>
+        <div>
+          <label for="line_max_gap">Max gap between line segments (px)</label>
+          <div class="range-row">
+            <input type="range" id="line_max_gap" min="1" max="50" step="1" value="10" oninput="syncVal(this,'line_max_gap-val')">
+            <span class="range-val" id="line_max_gap-val">10</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button id="run-btn" class="btn btn-primary" disabled onclick="runOCR()">▶ Run OCR</button>
+    <div id="status">No file selected.</div>
+
+    <!-- Auto-tune -->
+    <div class="group">
+      <div class="group-header">⚡ Auto-Tune</div>
+      <div class="group-body">
+        <div>
+          <label for="tune-expected">Expected numbers (space or comma separated)</label>
+          <textarea id="tune-expected" class="tune-expected" placeholder="e.g. 403 401 404 403 408"></textarea>
+        </div>
+        <button id="tune-btn" class="btn btn-secondary" disabled onclick="startTune()">⚡ Run Auto-Tune (~3 min)</button>
+        <div class="progress-wrap" id="progress-wrap">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div id="tune-status-line"></div>
+        <div class="tune-results" id="tune-results">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Score</th><th>DPI</th><th>PSM</th>
+                <th>OEM</th><th>Desp</th><th>Lines</th><th>Found</th>
+              </tr>
+            </thead>
+            <tbody id="tune-tbody"></tbody>
+          </table>
+        </div>
+        <button id="apply-btn" class="btn btn-success" style="display:none" onclick="applyBest()">✓ Apply Best Settings</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <div class="tab-bar">
+      <div class="tab active" onclick="showTab('tab-images', this)">Images</div>
+      <div class="tab" onclick="showTab('tab-results', this)">Results</div>
+      <div class="tab" onclick="showTab('tab-overlay', this)">Word Overlay</div>
+    </div>
+
+    <div class="tab-content active" id="tab-images">
+      <div class="img-pair">
+        <div class="img-panel">
+          <div class="img-label">Raw (at DPI)</div>
+          <div id="raw-img-wrap"><div class="img-empty">Run OCR to see preview</div></div>
+        </div>
+        <div class="img-panel">
+          <div class="img-label">Processed (pre-Tesseract)</div>
+          <div id="proc-img-wrap"><div class="img-empty">Run OCR to see preview</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-results">
+      <div class="tess-config" id="tess-config-display">—</div>
+      <div class="result-section">
+        <div class="result-header">
+          Full text output
+          <button class="copy-btn" onclick="copyText('raw-text-pre')">Copy</button>
+        </div>
+        <pre class="raw-text" id="raw-text-pre">—</pre>
+      </div>
+      <div class="result-section">
+        <div class="result-header">Words (sorted by confidence)</div>
+        <div style="overflow-x:auto;max-height:400px;">
+          <table class="word-table" id="word-table">
+            <thead>
+              <tr>
+                <th>Text</th><th>Conf %</th><th style="min-width:80px;">Bar</th>
+                <th>Block</th><th>Line</th><th>x</th><th>y</th><th>w</th><th>h</th>
+              </tr>
+            </thead>
+            <tbody id="word-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-overlay">
+      <div style="font-size:11px;color:#666;">
+        Colour: <span style="color:#4ade80">■</span> high conf &nbsp;
+               <span style="color:#facc15">■</span> medium &nbsp;
+               <span style="color:#f87171">■</span> low conf
+      </div>
+      <div class="img-panel" style="display:inline-block;width:100%;">
+        <div class="img-label">Word bounding boxes on processed image</div>
+        <div id="overlay-wrap">
+          <div class="img-empty" id="overlay-empty">Run OCR to see overlay</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── helpers ───────────────────────────────────────────────────────────
+function syncVal(el, id) { document.getElementById(id).textContent = el.value; }
+
+function setSlider(id, val) {
+  const el = document.getElementById(id);
+  el.value = val;
+  const valId = id + '-val';
+  const valEl = document.getElementById(valId);
+  if (valEl) valEl.textContent = val;
+}
+
+function showTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+
+function copyText(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  });
+}
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg; el.className = cls || '';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── drag & drop ───────────────────────────────────────────────────────
+let selectedFile = null;
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) selectFile(fileInput.files[0]); });
+
+function selectFile(f) {
+  if (!f.name.toLowerCase().endsWith('.pdf')) { setStatus('Please drop a PDF file.', 'error'); return; }
+  selectedFile = f;
+  document.getElementById('file-name').textContent = f.name;
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('tune-btn').disabled = false;
+  setStatus(`Ready — ${f.name} (${(f.size/1024).toFixed(0)} KB)`);
+}
+
+// ── OCR ───────────────────────────────────────────────────────────────
+async function runOCR() {
+  if (!selectedFile) return;
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  setStatus('Running…');
+  const fd = new FormData();
+  fd.append('pdf', selectedFile);
+  fd.append('psm',             document.getElementById('psm').value);
+  fd.append('oem',             document.getElementById('oem').value);
+  fd.append('whitelist',       document.getElementById('whitelist').value);
+  fd.append('dpi',             document.getElementById('dpi').value);
+  fd.append('rotation',        document.getElementById('rotation').value);
+  fd.append('despeckle',       document.getElementById('despeckle').value);
+  fd.append('remove_lines',    document.getElementById('remove_lines').checked ? 'true' : 'false');
+  fd.append('line_min_length', document.getElementById('line_min_length').value);
+  fd.append('line_max_gap',    document.getElementById('line_max_gap').value);
+  try {
+    const resp = await fetch('/ocr', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (data.error) {
+      setStatus('Error — see console', 'error');
+      document.getElementById('raw-text-pre').textContent = data.error;
+    } else {
+      renderResults(data);
+      setStatus(`Done — ${data.words.length} words detected.`, 'ok');
+    }
+  } catch(e) { setStatus('Network error: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+// ── render results ────────────────────────────────────────────────────
+function renderResults(data) {
+  document.getElementById('raw-img-wrap').innerHTML  = `<img src="${data.raw_preview}">`;
+  document.getElementById('proc-img-wrap').innerHTML = `<img src="${data.processed_preview}">`;
+  document.getElementById('tess-config-display').textContent = 'Config: ' + data.config;
+  document.getElementById('raw-text-pre').textContent = data.full_text || '(empty)';
+
+  const sorted = [...data.words].sort((a,b) => b.conf - a.conf);
+  const tbody = document.getElementById('word-tbody');
+  tbody.innerHTML = '';
+  sorted.forEach(w => {
+    const cls = w.conf>=80?'conf-high':w.conf>=50?'conf-mid':'conf-low';
+    const bw = Math.max(2, Math.round(w.conf * 0.6));
+    tbody.innerHTML += `<tr>
+      <td style="color:#e0e0e0;font-weight:600;">${escHtml(w.text)}</td>
+      <td>${w.conf}</td>
+      <td><div class="conf-bar-wrap"><div class="conf-bar ${cls}" style="width:${bw}px"></div></div></td>
+      <td>${w.block}</td><td>${w.line}</td>
+      <td>${w.left}</td><td>${w.top}</td><td>${w.width}</td><td>${w.height}</td>
+    </tr>`;
+  });
+  buildOverlay(data.processed_preview, data.words, data.image_size.w, data.image_size.h);
+}
+
+function buildOverlay(dataUri, words, natW, natH) {
+  const wrap = document.getElementById('overlay-wrap');
+  wrap.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = dataUri; img.style.cssText = 'display:block;width:100%';
+  wrap.appendChild(img);
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
+  wrap.appendChild(canvas);
+  const draw = () => {
+    const dw = img.offsetWidth, dh = img.offsetHeight;
+    if (!dw) return;
+    canvas.width = dw; canvas.height = dh;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,dw,dh);
+    const sx = dw/natW, sy = dh/natH;
+    words.forEach(w => {
+      const col = w.conf>=80?'#4ade80':w.conf>=50?'#facc15':'#f87171';
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.7;
+      ctx.strokeRect(w.left*sx, w.top*sy, w.width*sx, w.height*sy);
+      ctx.globalAlpha = 0.9; ctx.fillStyle = col;
+      ctx.font = `bold ${Math.max(8,10*sx)}px monospace`;
+      const ty = w.top*sy - 2 > 0 ? w.top*sy - 2 : w.top*sy + w.height*sy + 10;
+      ctx.fillText(w.text, w.left*sx + 1, ty);
+    });
+  };
+  img.onload = draw;
+  window.addEventListener('resize', draw);
+}
+
+// ── auto-tune ─────────────────────────────────────────────────────────
+let tuneJobId = null;
+let tunePollTimer = null;
+let tuneBestParams = null;
+
+async function startTune() {
+  if (!selectedFile) return;
+  const expected = document.getElementById('tune-expected').value.trim();
+  if (!expected) { alert('Enter at least one expected number.'); return; }
+
+  document.getElementById('tune-btn').disabled = true;
+  document.getElementById('apply-btn').style.display = 'none';
+  document.getElementById('tune-results').style.display = 'none';
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('progress-bar').style.width = '0%';
+  document.getElementById('tune-status-line').textContent = 'Starting…';
+  tuneBestParams = null;
+
+  const fd = new FormData();
+  fd.append('pdf', selectedFile);
+  fd.append('expected', expected);
+  fd.append('whitelist', document.getElementById('whitelist').value);
+
+  try {
+    const resp = await fetch('/tune/start', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (data.error) {
+      document.getElementById('tune-status-line').textContent = 'Error: ' + data.error;
+      document.getElementById('tune-btn').disabled = false;
+      return;
+    }
+    tuneJobId = data.job_id;
+    tunePollTimer = setInterval(pollTune, 1500);
+  } catch(e) {
+    document.getElementById('tune-status-line').textContent = 'Network error: ' + e.message;
+    document.getElementById('tune-btn').disabled = false;
+  }
+}
+
+async function pollTune() {
+  if (!tuneJobId) return;
+  try {
+    const resp = await fetch(`/tune/status/${tuneJobId}`);
+    const data = await resp.json();
+
+    const prog = data.total > 0 ? (data.progress / data.total * 100) : 0;
+    document.getElementById('progress-bar').style.width = prog.toFixed(1) + '%';
+
+    if (data.status === 'running' || data.status === 'starting') {
+      const remaining = data.total - data.progress;
+      document.getElementById('tune-status-line').textContent =
+        `${data.progress}/${data.total} combinations tested…`;
+      return;
+    }
+
+    // Done
+    clearInterval(tunePollTimer);
+    tunePollTimer = null;
+    document.getElementById('progress-bar').style.width = '100%';
+
+    if (data.best) {
+      tuneBestParams = data.best;
+      renderTuneResults(data.top, data.best);
+      document.getElementById('tune-btn').disabled = false;
+      document.getElementById('apply-btn').style.display = 'block';
+      const b = data.best;
+      const pct = Math.round(b.score / b.total * 100);
+      document.getElementById('tune-status-line').textContent =
+        `Done — best: ${b.score}/${b.total} (${pct}%) · PSM ${b.psm} · OEM ${b.oem} · DPI ${b.dpi}`;
+    }
+  } catch(e) {
+    document.getElementById('tune-status-line').textContent = 'Poll error: ' + e.message;
+  }
+}
+
+function renderTuneResults(top, best) {
+  const tbody = document.getElementById('tune-tbody');
+  tbody.innerHTML = '';
+  top.forEach((r, i) => {
+    const pct = Math.round(r.score / r.total * 100);
+    const lines = r.lines ? `Y/${r.line_min}` : 'N';
+    const isBest = i === 0;
+    tbody.innerHTML += `<tr class="${isBest ? 'best-row' : ''}">
+      <td>${i+1}</td>
+      <td>${r.score}/${r.total} ${pct}%</td>
+      <td>${r.dpi}</td><td>${r.psm}</td><td>${r.oem}</td>
+      <td>${r.despeckle}</td><td>${lines}</td>
+      <td>${r.found.join(' ') || '—'}</td>
+    </tr>`;
+  });
+  document.getElementById('tune-results').style.display = 'block';
+}
+
+function applyBest() {
+  if (!tuneBestParams) return;
+  const b = tuneBestParams;
+
+  // PSM
+  document.getElementById('psm').value = b.psm;
+  // OEM
+  document.getElementById('oem').value = b.oem;
+  // DPI
+  setSlider('dpi', b.dpi);
+  // Despeckle
+  setSlider('despeckle', b.despeckle);
+  // Rotation
+  setSlider('rotation', b.rotation);
+  // Line removal
+  document.getElementById('remove_lines').checked = b.lines;
+  if (b.lines) {
+    setSlider('line_min_length', b.line_min);
+    setSlider('line_max_gap', b.line_gap);
+  }
+
+  setStatus(`Best params applied — PSM ${b.psm}, OEM ${b.oem}, DPI ${b.dpi}`, 'ok');
+
+  // Auto-run OCR with the new settings
+  runOCR();
+}
+</script>
+</body>
+</html>
