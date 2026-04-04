@@ -18,6 +18,19 @@ import pytesseract
 from flask import Flask, jsonify, render_template, request
 from PIL import Image
 
+# ── Windows: point pytesseract at the default UB-Mannheim install path ────
+import platform, shutil
+if platform.system() == "Windows":
+    _tess_candidates = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+    if not shutil.which("tesseract"):
+        for _p in _tess_candidates:
+            if Path(_p).exists():
+                pytesseract.pytesseract.tesseract_cmd = _p
+                break
+
 # ── constants ────────────────────────────────────────────────────────────────
 VERSION = "p1"
 UPLOAD_FOLDER = Path(__file__).parent / "uploads"
