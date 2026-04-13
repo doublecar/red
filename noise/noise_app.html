@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noise Generator — Sleep Aid</title>
+<style>
+  :root {
+    --bg:      #0d0f1a;
+    --bg2:     #151826;
+    --bg3:     #1e2136;
+    --bg4:     #252a45;
+    --fg:      #e2e6f5;
+    --fg2:     #7a85aa;
+    --acc:     #6c9ef8;
+    --acc2:    #4ecb8d;
+    --red:     #e05260;
+    --border:  #272d4a;
+    --r:       14px;
+    --r2:      8px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 36px 16px 48px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── Header ── */
+  .header { text-align: center; padding: 8px 0 12px; }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--acc);
+  }
+  .header p { font-size: 13px; color: var(--fg2); margin-top: 5px; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 18px 20px;
+  }
+  .card-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--fg2);
+    margin-bottom: 14px;
+  }
+
+  /* ── Channel row ── */
+  .channel {
+    display: grid;
+    grid-template-columns: 28px 130px 1fr 46px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .channel:last-child { border-bottom: none; }
+
+  .ch-icon { font-size: 18px; text-align: center; }
+  .ch-name { font-size: 14px; font-weight: 500; color: var(--fg); }
+
+  /* Range slider */
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--bg4);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--acc);
+    cursor: pointer;
+    transition: transform .1s, box-shadow .1s;
+    box-shadow: 0 0 0 3px rgba(108,158,248,.2);
+  }
+  input[type=range]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 5px rgba(108,158,248,.3);
+  }
+  /* Dynamic fill via CSS custom property set by JS */
+  input[type=range].filled {
+    background: linear-gradient(
+      to right,
+      var(--acc) 0%,
+      var(--acc) var(--pct, 50%),
+      var(--bg4) var(--pct, 50%),
+      var(--bg4) 100%
+    );
+  }
+
+  .ch-val {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--acc);
+    text-align: right;
+  }
+
+  /* ── Visualizer ── */
+  #vis {
+    width: 100%;
+    height: 70px;
+    border-radius: var(--r2);
+    display: block;
+    background: var(--bg3);
+  }
+
+  /* ── Output mode ── */
+  .output-modes {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .mode-btn {
+    flex: 1;
+    min-width: 130px;
+    padding: 10px 12px;
+    border-radius: var(--r2);
+    border: 1.5px solid var(--border);
+    background: var(--bg3);
+    color: var(--fg2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all .15s;
+    user-select: none;
+  }
+  .mode-btn:hover { border-color: var(--acc); color: var(--fg); }
+  .mode-btn.active {
+    border-color: var(--acc);
+    background: rgba(108,158,248,.12);
+    color: var(--acc);
+  }
+
+  .dur-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .dur-row label { font-size: 13px; color: var(--fg2); white-space: nowrap; }
+  .dur-input {
+    width: 72px;
+    background: var(--bg3);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r2);
+    color: var(--fg);
+    font-size: 14px;
+    padding: 7px 10px;
+    outline: none;
+    text-align: center;
+    transition: border-color .15s;
+  }
+  .dur-input:focus { border-color: var(--acc); }
+  .dur-row span { font-size: 13px; color: var(--fg2); }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 12px; }
+  .btn {
+    flex: 1;
+    padding: 14px 0;
+    border-radius: var(--r2);
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    cursor: pointer;
+    transition: filter .15s, transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-play  { background: var(--acc);  color: #fff; }
+  .btn-play.playing { background: var(--red); }
+  .btn-save  { background: var(--acc2); color: #fff; }
+  .btn:disabled { background: var(--bg4); color: var(--fg2); cursor: not-allowed; }
+
+  /* ── Progress ── */
+  .progress-wrap {
+    margin-top: 12px;
+    background: var(--bg3);
+    border-radius: 4px;
+    height: 4px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--acc2);
+    width: 0%;
+    transition: width .4s linear;
+    border-radius: 4px;
+  }
+
+  /* ── Status ── */
+  #status {
+    text-align: center;
+    font-size: 13px;
+    color: var(--fg2);
+    min-height: 20px;
+    padding-top: 6px;
+  }
+  #status.ok  { color: var(--acc2); }
+  #status.err { color: var(--red);  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🌙 Noise Generator</h1>
+    <p>Sleep Aid &nbsp;·&nbsp; 5-channel noise mixer</p>
+  </div>
+
+  <!-- Channels -->
+  <div class="card">
+    <div class="card-label">Channels</div>
+    <div class="channel">
+      <span class="ch-icon">🌧️</span>
+      <span class="ch-name">Heavy Rain</span>
+      <input type="range" id="vol-rain"      min="0" max="100" value="50" class="filled">
+      <span  class="ch-val" id="lbl-rain">50%</span>
+    </div>
+    <div class="channel">
+      <span class="ch-icon">🟤</span>
+      <span class="ch-name">Brown Noise</span>
+      <input type="range" id="vol-brown"     min="0" max="100" value="50" class="filled">
+      <span  class="ch-val" id="lbl-brown">50%</span>
+    </div>
+    <div class="channel">
+      <span class="ch-icon">🌀</span>
+      <span class="ch-name">Fan</span>
+      <input type="range" id="vol-fan"       min="0" max="100" value="50" class="filled">
+      <span  class="ch-val" id="lbl-fan">50%</span>
+    </div>
+    <div class="channel">
+      <span class="ch-icon">👥</span>
+      <span class="ch-name">Human Crowd</span>
+      <input type="range" id="vol-crowd"     min="0" max="100" value="50" class="filled">
+      <span  class="ch-val" id="lbl-crowd">50%</span>
+    </div>
+    <div class="channel">
+      <span class="ch-icon">💧</span>
+      <span class="ch-name">Waterfall</span>
+      <input type="range" id="vol-waterfall" min="0" max="100" value="50" class="filled">
+      <span  class="ch-val" id="lbl-waterfall">50%</span>
+    </div>
+  </div>
+
+  <!-- Visualizer -->
+  <div class="card">
+    <div class="card-label">Output Level</div>
+    <canvas id="vis"></canvas>
+  </div>
+
+  <!-- Output options -->
+  <div class="card">
+    <div class="card-label">Output Mode</div>
+    <div class="output-modes">
+      <div class="mode-btn active" data-mode="speaker">🔊&nbsp; Speaker</div>
+      <div class="mode-btn"       data-mode="file">💾&nbsp; Save to File</div>
+      <div class="mode-btn"       data-mode="both">✨&nbsp; Both</div>
+    </div>
+    <div class="dur-row">
+      <label for="dur">Save duration:</label>
+      <input  type="number" id="dur" class="dur-input" value="30" min="1" max="600">
+      <span>minutes</span>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card">
+    <div class="btn-row">
+      <button class="btn btn-play" id="btn-play">▶&nbsp; PLAY</button>
+      <button class="btn btn-save" id="btn-save">💾&nbsp; SAVE</button>
+    </div>
+    <div class="progress-wrap" id="prog-wrap">
+      <div class="progress-fill" id="prog-fill"></div>
+    </div>
+    <div id="status">Ready — press PLAY to start</div>
+  </div>
+
+</div><!-- .app -->
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AudioWorklet processor code (runs in audio thread)
+// ═══════════════════════════════════════════════════════════════════════════
+const WORKLET_SRC = `
+// ── Brown noise: leaky integrator on white noise ─────────────────────────
+class BrownProc extends AudioWorkletProcessor {
+  constructor() { super(); this.y = 0; }
+  process(_, outputs) {
+    const out = outputs[0][0];
+    for (let i = 0; i < out.length; i++) {
+      this.y = 0.9985 * this.y + (Math.random() * 2 - 1) * 0.02;
+      out[i] = Math.max(-1, Math.min(1, this.y * 3.5));
+    }
+    return true;
+  }
+}
+registerProcessor('brown', BrownProc);
+
+// ── Pure white noise ──────────────────────────────────────────────────────
+class WhiteProc extends AudioWorkletProcessor {
+  process(_, outputs) {
+    const o = outputs[0][0];
+    for (let i = 0; i < o.length; i++) o[i] = Math.random() * 2 - 1;
+    return true;
+  }
+}
+registerProcessor('white', WhiteProc);
+
+// ── Pink noise via Voss-McCartney IIR approximation ───────────────────────
+class PinkProc extends AudioWorkletProcessor {
+  constructor() { super(); this.b = new Float64Array(7); }
+  process(_, outputs) {
+    const o = outputs[0][0], b = this.b;
+    for (let i = 0; i < o.length; i++) {
+      const w = Math.random() * 2 - 1;
+      b[0] = 0.99886*b[0] + w*0.0555179;
+      b[1] = 0.99332*b[1] + w*0.0750759;
+      b[2] = 0.96900*b[2] + w*0.1538520;
+      b[3] = 0.86650*b[3] + w*0.3104856;
+      b[4] = 0.55000*b[4] + w*0.5329522;
+      b[5] = -0.7616*b[5] - w*0.0168980;
+      o[i] = Math.max(-1, Math.min(1,
+        (b[0]+b[1]+b[2]+b[3]+b[4]+b[5]+b[6]+w*0.5362) * 0.11));
+      b[6] = w * 0.115926;
+    }
+    return true;
+  }
+}
+registerProcessor('pink', PinkProc);
+
+// ── Fan: motor harmonics (60 Hz) + broadband airflow ─────────────────────
+class FanProc extends AudioWorkletProcessor {
+  constructor() { super(); this.ph = new Float64Array(7); }
+  process(_, outputs) {
+    const o = outputs[0][0], ph = this.ph, sr = sampleRate;
+    const TWO_PI = 6.283185307;
+    for (let i = 0; i < o.length; i++) {
+      let tone = 0;
+      for (let h = 0; h < 7; h++) {
+        tone += (0.5 / (h+1)) * Math.sin(ph[h]);
+        ph[h] += TWO_PI * 60 * (h+1) / sr;
+        if (ph[h] > TWO_PI) ph[h] -= TWO_PI;
+      }
+      o[i] = tone * 0.18 + (Math.random() * 2 - 1) * 0.82;
+    }
+    return true;
+  }
+}
+registerProcessor('fan', FanProc);
+
+// ── Crowd: 32 overlapping voice oscillators + speech-band noise ───────────
+class CrowdProc extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    const N = 32;
+    this.freqs  = Float64Array.from({length: N}, () => 90 + Math.random()*420);
+    this.phases = Float64Array.from({length: N}, () => Math.random()*6.283185307);
+  }
+  process(_, outputs) {
+    const o = outputs[0][0], {freqs, phases} = this;
+    const sr = sampleRate, N = freqs.length, TWO_PI = 6.283185307;
+    for (let i = 0; i < o.length; i++) {
+      let v = 0;
+      for (let j = 0; j < N; j++) {
+        v += Math.sin(phases[j]);
+        phases[j] += TWO_PI * freqs[j] / sr;
+        if (phases[j] > TWO_PI) phases[j] -= TWO_PI;
+      }
+      o[i] = (v / N) * 0.4 + (Math.random() * 2 - 1) * 0.6;
+    }
+    return true;
+  }
+}
+registerProcessor('crowd', CrowdProc);
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════════════════════════
+let actx      = null;
+let gains     = {};      // per-channel GainNode
+let master    = null;
+let analyser  = null;
+let isPlaying = false;
+let rafId     = null;
+let recorder  = null;
+let recChunks = [];
+let outputMode = 'speaker';
+
+const CH = [
+  { id: 'rain',      setup: buildRain      },
+  { id: 'brown',     setup: buildBrown     },
+  { id: 'fan',       setup: buildFan       },
+  { id: 'crowd',     setup: buildCrowd     },
+  { id: 'waterfall', setup: buildWaterfall },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Audio graph builders
+// ═══════════════════════════════════════════════════════════════════════════
+
+function bqf(type, freq, Q = 0.707) {
+  const f = actx.createBiquadFilter();
+  f.type = type; f.frequency.value = freq; f.Q.value = Q;
+  return f;
+}
+function gain(v = 1) {
+  const g = actx.createGain(); g.gain.value = v; return g;
+}
+function worklet(name) {
+  return new AudioWorkletNode(actx, name, { outputChannelCount: [1] });
+}
+
+// Each builder returns a GainNode that acts as the channel's volume fader.
+// All builders connect their output into that gain, which connects to master.
+
+function buildRain() {
+  const g = gain(0.5);
+
+  // Body: white noise → highpass 800 Hz → lowpass 10 kHz (rain hits)
+  const body = worklet('white');
+  const hp   = bqf('highpass',  800, 0.6);
+  const lp   = bqf('lowpass',  10000, 0.7);
+  body.connect(hp).connect(lp).connect(g);
+
+  // Second highpass layer for crispness
+  const body2 = worklet('white');
+  const hp2   = bqf('highpass', 2000, 0.5);
+  const bg2   = gain(0.4);
+  body2.connect(hp2).connect(bg2).connect(g);
+
+  // Distant rumble: white → lowpass 180 Hz
+  const rumble = worklet('white');
+  const rlp    = bqf('lowpass', 180, 0.8);
+  const rg     = gain(0.18);
+  rumble.connect(rlp).connect(rg).connect(g);
+
+  g.connect(master);
+  return g;
+}
+
+function buildBrown() {
+  const g  = gain(0.5);
+  const src = worklet('brown');
+  // Gentle low-pass roll-off above 1.2 kHz keeps it warm
+  const lp  = bqf('lowpass', 1200, 0.6);
+  src.connect(lp).connect(g).connect(master);
+  return g;
+}
+
+function buildFan() {
+  const g   = gain(0.5);
+  const src = worklet('fan');
+  // Band-pass airflow component: keep 200 Hz – 4 kHz
+  const hp  = bqf('highpass',  200, 0.5);
+  const lp  = bqf('lowpass',  4000, 0.5);
+  src.connect(hp).connect(lp).connect(g).connect(master);
+  return g;
+}
+
+function buildCrowd() {
+  const g   = gain(0.5);
+  const src = worklet('crowd');
+  // Speech band: 200 Hz – 3.5 kHz
+  const hp  = bqf('highpass',  200, 0.7);
+  const lp  = bqf('lowpass',  3500, 0.7);
+  src.connect(hp).connect(lp).connect(g).connect(master);
+  return g;
+}
+
+function buildWaterfall() {
+  const g    = gain(0.5);
+
+  // Core: pink noise (smooth, low-mid heavy)
+  const pink = worklet('pink');
+  pink.connect(g);
+
+  // Splash: white noise → highpass 4 kHz
+  const splash = worklet('white');
+  const hp     = bqf('highpass', 4000, 0.6);
+  const sg     = gain(0.22);
+  splash.connect(hp).connect(sg).connect(g);
+
+  g.connect(master);
+  return g;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Initialise AudioContext + Worklet
+// ═══════════════════════════════════════════════════════════════════════════
+async function initAudio() {
+  if (actx) return;
+
+  actx = new AudioContext({ sampleRate: 44100, latencyHint: 'playback' });
+
+  // Load worklet via Blob URL (works from file://)
+  const blob = new Blob([WORKLET_SRC], { type: 'application/javascript' });
+  const url  = URL.createObjectURL(blob);
+  await actx.audioWorklet.addModule(url);
+  URL.revokeObjectURL(url);
+
+  master   = gain(0.85);
+  analyser = actx.createAnalyser();
+  analyser.fftSize = 1024;
+  analyser.smoothingTimeConstant = 0.8;
+
+  master.connect(analyser);
+  analyser.connect(actx.destination);
+
+  // Build channels and apply current slider values
+  for (const ch of CH) {
+    gains[ch.id] = ch.setup();
+    applyVolume(ch.id);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Volume helpers
+// ═══════════════════════════════════════════════════════════════════════════
+function applyVolume(id) {
+  const val = parseFloat(document.getElementById('vol-' + id).value) / 100;
+  if (gains[id]) gains[id].gain.setTargetAtTime(val * 0.75, actx.currentTime, 0.015);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Playback
+// ═══════════════════════════════════════════════════════════════════════════
+async function startPlayback() {
+  await initAudio();
+  if (actx.state === 'suspended') await actx.resume();
+  isPlaying = true;
+  document.getElementById('btn-play').textContent = '■  STOP';
+  document.getElementById('btn-play').classList.add('playing');
+  setStatus('Playing…', '');
+  drawVis();
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  document.getElementById('btn-play').textContent = '▶  PLAY';
+  document.getElementById('btn-play').classList.remove('playing');
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  clearVis();
+  setStatus('Stopped', '');
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Save / Record
+// ═══════════════════════════════════════════════════════════════════════════
+async function startSave() {
+  const minutes = parseFloat(document.getElementById('dur').value);
+  if (isNaN(minutes) || minutes <= 0) {
+    setStatus('⚠ Enter a valid duration.', 'err'); return;
+  }
+
+  // Ensure audio is running
+  if (!isPlaying) await startPlayback();
+
+  // Wire MediaStreamDestination off the master gain
+  const dest = actx.createMediaStreamDestination();
+  master.connect(dest);
+
+  recChunks = [];
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus' : 'audio/webm';
+
+  recorder = new MediaRecorder(dest.stream, { mimeType });
+  recorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+  recorder.onstop = () => {
+    master.disconnect(dest);
+    const blob   = new Blob(recChunks, { type: mimeType });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href       = url;
+    a.download   = `noise_${minutes}min.webm`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+    setStatus(`✓ Saved  noise_${minutes}min.webm`, 'ok');
+    document.getElementById('btn-save').disabled = false;
+    document.getElementById('prog-wrap').style.display = 'none';
+    document.getElementById('prog-fill').style.width   = '0%';
+  };
+
+  recorder.start(500);
+  document.getElementById('btn-save').disabled = true;
+  document.getElementById('prog-wrap').style.display = 'block';
+
+  const startMs = Date.now();
+  const totalMs = minutes * 60_000;
+  setStatus(`Recording ${minutes} min…`, '');
+
+  (function tick() {
+    const elapsed = Date.now() - startMs;
+    const pct = Math.min(100, elapsed / totalMs * 100);
+    document.getElementById('prog-fill').style.width = pct + '%';
+    const remaining = Math.max(0, Math.round((totalMs - elapsed) / 1000));
+    setStatus(`Recording… ${fmtTime(remaining)} remaining`, '');
+    if (elapsed < totalMs) requestAnimationFrame(tick);
+  })();
+
+  setTimeout(() => {
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+  }, totalMs);
+}
+
+function fmtTime(secs) {
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Visualiser
+// ═══════════════════════════════════════════════════════════════════════════
+function drawVis() {
+  const canvas = document.getElementById('vis');
+  const ctx    = canvas.getContext('2d');
+
+  function frame() {
+    if (!isPlaying || !analyser) return;
+    rafId = requestAnimationFrame(frame);
+
+    const W = canvas.width  = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#1e2136';
+    ctx.fillRect(0, 0, W, H);
+
+    // Only render the lower half of frequency bins (audible range of interest)
+    const bins    = Math.floor(data.length * 0.55);
+    const barW    = W / bins;
+
+    for (let i = 0; i < bins; i++) {
+      const norm = data[i] / 255;
+      const h    = norm * H;
+      const hue  = 205 + i * (60 / bins);
+      const sat  = 60 + norm * 25;
+      const lgt  = 40 + norm * 25;
+      ctx.fillStyle = `hsl(${hue},${sat}%,${lgt}%)`;
+      ctx.fillRect(i * barW, H - h, Math.max(1, barW - 1), h);
+    }
+  }
+  frame();
+}
+
+function clearVis() {
+  const canvas = document.getElementById('vis');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  ctx.fillStyle = '#1e2136';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  UI wiring
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Sliders
+for (const ch of CH) {
+  const slider = document.getElementById('vol-' + ch.id);
+  const label  = document.getElementById('lbl-' + ch.id);
+
+  function update(el, lbl, id) {
+    const v = el.value;
+    lbl.textContent = v + '%';
+    el.style.setProperty('--pct', v + '%');
+    if (actx) applyVolume(id);
+  }
+
+  slider.addEventListener('input', () => update(slider, label, ch.id));
+  // Set initial CSS fill
+  slider.style.setProperty('--pct', slider.value + '%');
+}
+
+// Output mode selector
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    outputMode = btn.dataset.mode;
+  });
+});
+
+// Play / Stop
+document.getElementById('btn-play').addEventListener('click', async () => {
+  if (isPlaying) {
+    stopPlayback();
+  } else {
+    if (outputMode === 'file') {
+      await startSave();
+    } else {
+      await startPlayback();
+      if (outputMode === 'both') startSave();
+    }
+  }
+});
+
+// Save button
+document.getElementById('btn-save').addEventListener('click', async () => {
+  await startSave();
+});
+
+// Status helper
+function setStatus(msg, cls = '') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className   = cls;
+}
+
+// Init canvas on load
+window.addEventListener('load', clearVis);
+window.addEventListener('resize', () => { if (!isPlaying) clearVis(); });
+</script>
+</body>
+</html>
